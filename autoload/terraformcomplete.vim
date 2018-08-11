@@ -1,4 +1,4 @@
-if !has("ruby") && !has("ruby/dyn")
+if !has("ruby")
     finish
 endif
 
