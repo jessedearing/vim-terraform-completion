@@ -414,6 +414,7 @@ function! terraformcomplete#rubyComplete(ins, provider, resource, attribute, dat
 
     let s:curr_pos = getpos('.')
     let a:res = []
+    let a:resource_line_text = getline(s:curr_pos[1])
     let a:resource_line = getline(s:curr_pos[1]) =~ "^[ ]*resource"
     let a:data_line = getline(s:curr_pos[1]) =~ "^[ ]*data"
     let a:provider_line = (strpart(getline("."),0, getpos(".")[2]) =~ '^[ ]*\(resource\|data\)[ ]*"\%["]$' || getline(s:curr_pos[1]) =~ "provider")
@@ -472,6 +473,14 @@ def terraform_complete(provider, resource)
                     { "word" => x }
                 }
             elsif VIM::evaluate('a:resource_line') == 1 then
+                resource_partial_regexp = /\s*resource\s+\"[a-zA-Z0-9]*\_(.+)/
+                full_line = VIM::evaluate('a:resource_line_text')
+                if full_line.match? resource_partial_regexp
+                  resource_part = resource_partial_regexp.match(resource_partial_regexp).captured
+                  temp.select! { |x|
+                    x.include? resource_part
+                  }
+                end
                 temp = parsed_data['resources'].keys
                 temp.delete("provider_arguments")
                 result = temp.map { |x|
