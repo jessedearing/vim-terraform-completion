@@ -414,11 +414,10 @@ function! terraformcomplete#rubyComplete(ins, provider, resource, attribute, dat
 
     let s:curr_pos = getpos('.')
     let a:res = []
-    let a:resource_line_text = getline(s:curr_pos[1])
     let a:resource_line = getline(s:curr_pos[1]) =~ "^[ ]*resource"
-    let a:data_line_text = getline(s:curr_pos[1])
     let a:data_line = getline(s:curr_pos[1]) =~ "^[ ]*data"
     let a:provider_line = (strpart(getline("."),0, getpos(".")[2]) =~ '^[ ]*\(resource\|data\)[ ]*"\%["]$' || getline(s:curr_pos[1]) =~ "provider")
+    let a:current_line = getline(s:curr_pos[1])
 
   ruby << EOF
 require 'json'
@@ -426,6 +425,7 @@ require 'json'
 def terraform_complete(provider, resource)
     begin
         data = ''
+        current_line = VIM::evaluate('a:current_line')
         if VIM::evaluate('a:provider_line') == 0 then
 						if File.exists? "#{VIM::evaluate('s:path')}/../provider_json/#{provider}/#{VIM::evaluate("g:terraform_versions_config")[provider]}/#{provider}.json" 
 							File.open("#{VIM::evaluate('s:path')}/../provider_json/#{provider}/#{VIM::evaluate("g:terraform_versions_config")[provider]}/#{provider}.json", "r") do |f|
@@ -470,8 +470,7 @@ def terraform_complete(provider, resource)
             elsif VIM::evaluate('a:data_line') == 1 then
                 temp = parsed_data['datas'].keys
                 data_partial_regexp = /\s*data\s+\"[a-zA-Z0-9]*\_(.+)/
-                full_line = VIM::evaluate('a:data_line_text')
-                if full_line.match? data_partial_regexp
+                if current_line.match? data_partial_regexp
                   data_part = data_partial_regexp.match(data_partial_regexp).captured
                   temp.select! { |x|
                     x.include? data_part
@@ -483,8 +482,7 @@ def terraform_complete(provider, resource)
                 }
             elsif VIM::evaluate('a:resource_line') == 1 then
                 resource_partial_regexp = /\s*resource\s+\"[a-zA-Z0-9]*\_(.+)/
-                full_line = VIM::evaluate('a:resource_line_text')
-                if full_line.match? resource_partial_regexp
+                if current_line.match? resource_partial_regexp
                   resource_part = resource_partial_regexp.match(resource_partial_regexp).captured
                   temp.select! { |x|
                     x.include? resource_part
@@ -620,13 +618,19 @@ fun! terraformcomplete#Complete(findstart, base)
             result.concat(base_data)
 
 						all_words = VIM::evaluate("a:all_line")
-						result_subblock = result 
+
+            all_words.select! do |x|
+              argregexp = /\s*([a-zA-Z0-9\_]*)/
+              if all_words[0].match? argregexp
+                args_part = argregexp.match(argregexp).captured
+                result.select! { |x| x['word'].include? args_part }
+              end
+            end
+
 						all_words.reverse.each do |word|
 							result_subblock = result_subblock.find {|i| i["word"] == word }["subblock"]
 						end
 						parsed_data = JSON.generate(result_subblock)
-            result.each do |i| 
-	    end
             VIM::command("let a:res = #{parsed_data}")
 EOF
         return a:res
